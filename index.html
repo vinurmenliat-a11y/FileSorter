@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<!--
+  FileSorter: a web app that sorts uploaded files into folders by file name.
+  Built with HTML (page), CSS (design), and JavaScript (logic).
+  Files and folder names are saved only in your own browser.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FileSorter - Automatic File Organizer</title>
+<meta name="description" content="FileSorter puts your files into folders automatically, based on the file name. Only file records stay in your browser.">
+
+
+<!-- STYLES: all the design of the page (CSS) -->
+<style>
+
+
+/* COLORS: change the colors of the whole page here */
+:root{
+  color-scheme:light;
+  --bg:#F6F8FC; --surface:#FFFFFF; --ink:#1A2322; --muted:#5A6865; --line:#E1E6E5;
+  --accent:#2563EB; --accent-ink:#FFFFFF; --tint:#F3F6FC; --danger:#B3261E; --focus:#1B6EF3;
+}
+
+
+/* BASIC PAGE STYLE: fonts, text color, and background */
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;line-height:1.2;margin:0}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+
+/* PAGE HEADINGS: the title and short text at the top of each panel */
+.intro{margin-bottom:18px}
+.intro h1{font-size:1.9rem;margin-bottom:6px}
+.intro p{margin:0;color:var(--muted);max-width:62ch}
+
+
+/* CARDS: the white boxes that hold the content */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.card h2{font-size:1.2rem;margin-bottom:10px}
+.stats{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:.95rem}
+.stats strong{color:var(--ink)}
+
+
+/* UPLOAD BOX: the dashed area where files are dropped */
+.drop{border:2px dashed var(--muted);border-radius:12px;padding:22px 14px;text-align:center;background:var(--tint)}
+.drop.over{border-color:var(--accent);background:var(--surface)}
+.drop p{margin:0 0 10px}
+
+
+/* FORM FIELDS: labels, text boxes, and dropdowns */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+label{display:block;font-weight:600;font-size:.92rem;margin-bottom:4px}
+input,select{width:100%;padding:10px;border:1px solid var(--muted);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit}
+input[type=file]{padding:8px}
+
+
+/* BUTTONS: main, outline, red delete, and small buttons */
+.btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+button.btn{padding:9px 15px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer}
+button.btn.ghost{background:transparent;color:var(--ink);border-color:var(--muted)}
+button.btn.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+button.sm{padding:5px 10px;font-size:.88rem}
+
+
+/* MESSAGES: success and error text */
+.msg{margin:10px 0 0;min-height:1.3em;font-size:.95rem}
+.msg.err{color:var(--danger)}
+
+
+/* FOLDER AND FILE LISTS: each folder box and the files inside */
+.folder{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;background:var(--surface)}
+.f-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--tint);border-radius:10px 10px 0 0}
+.f-head h3{font-size:1.05rem}
+.f-tools{display:flex;gap:6px;flex-wrap:wrap}
+.kw{margin:0;padding:6px 14px 0;color:var(--muted);font-size:.88rem}
+ul.files{list-style:none;margin:0;padding:6px 14px 10px}
+ul.files li{padding:9px 0;border-bottom:1px dashed var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+ul.files li:last-child{border-bottom:0}
+.fname{font-weight:600;overflow-wrap:anywhere}
+.fmeta{color:var(--muted);font-size:.86rem}
+.row-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.row-tools select{width:auto;padding:5px 8px;font-size:.88rem}
+.empty{text-align:center;color:var(--muted);padding:22px 10px;margin:0}
+
+
+/* SCREEN READER TEXT: hidden on screen but read aloud by screen readers */
+.sr{position:absolute;left:-9999px}
+
+/* PAGE LAYOUT: the sidebar on the left and the content on the right */
+.app{display:flex;gap:20px;padding:16px;min-height:100vh;align-items:flex-start}
+
+
+/* SIDEBAR: the white floating card on the left */
+aside.side{flex:0 0 264px;width:264px;background:#fff;border-radius:24px;box-shadow:0 10px 34px rgba(25,45,90,.12);padding:16px;display:flex;flex-direction:column;gap:14px;position:sticky;top:16px;height:calc(100vh - 32px);overflow:auto}
+
+
+/* SIDEBAR PROFILE: the avatar on the left and the name on the right */
+.profile{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-radius:14px;padding:6px;font:inherit;color:var(--ink);cursor:pointer;text-align:left}
+.profile:hover{background:var(--tint)}
+.avatar{flex:0 0 auto;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#2563EB,#7C9CFF);color:#fff;display:grid;place-items:center;font:700 1.2rem Georgia,serif}
+.pname{display:flex;flex-direction:column;min-width:0;flex:1}
+.pname .n{font-weight:700;font-size:.97rem;overflow-wrap:anywhere;line-height:1.25}
+.pname .r{color:var(--muted);font-size:.8rem}
+.ico{width:22px;height:22px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.profile .ico{width:18px;height:18px;color:var(--muted)}
+
+
+/* SIDEBAR SEARCH BOX */
+.sidesearch{position:relative}
+.sidesearch input{border-radius:999px;border:1px solid var(--line);padding:10px 40px 10px 14px;font-size:.92rem;background:#fff}
+.sidesearch .ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted);pointer-events:none}
+
+
+/* SIDEBAR MENU: Upload files, All folders, All files */
+.side nav{display:flex;flex-direction:column;gap:4px}
+.side nav .sep{height:1px;background:var(--line);margin:8px 6px}
+.side nav button{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:none;border:0;color:#33415C;font:inherit;font-size:.95rem;padding:11px 14px;border-radius:12px;cursor:pointer}
+.side nav button:hover{background:var(--tint)}
+.side nav button[aria-current="page"]{background:#E6EFFE;color:#1D4ED8;font-weight:600}
+
+
+/* BADGE: the blue number showing how many files you have */
+.badge{margin-left:auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:.78rem;font-weight:700;display:grid;place-items:center}
+
+
+/* SIDEBAR BOTTOM BUTTONS: plus, edit name, and delete everything */
+.side-bottom{margin-top:auto;display:flex;gap:8px;justify-content:space-between}
+.side-bottom button{flex:1;height:42px;border:0;border-radius:12px;background:#F2F4F9;color:#55627A;cursor:pointer;display:grid;place-items:center}
+.side-bottom button:hover{background:#E6EFFE;color:#1D4ED8}
+
+
+/* MAIN CONTENT AREA: where the panels are shown */
+.content{flex:1;min-width:0;padding:8px 8px 24px;max-width:980px}
+.topbar{display:none}
+.scrim{display:none}
+
+
+/* PHONE LAYOUT: on small screens the sidebar becomes a slide-in menu */
+@media (max-width:860px){
+  .app{display:block;padding:0}
+  .topbar{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+  .topbar button{width:42px;height:42px;border:0;border-radius:12px;background:#F2F4F9;color:var(--ink);display:grid;place-items:center;cursor:pointer}
+  .topbar b{font:700 1.15rem Georgia,serif}
+  aside.side{position:fixed;left:12px;top:12px;bottom:12px;height:auto;width:min(290px,calc(100vw - 24px));z-index:30;transform:translateX(-120%);transition:transform .25s}
+  .app.open aside.side{transform:translateX(0)}
+  .app.open .scrim{display:block;position:fixed;inset:0;background:rgba(10,20,40,.4);z-index:20}
+  .content{padding:16px}
+}
+
+
+/* STATS ROW: the numbers of files, folders, and total size */
+.statsrow{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:.95rem}
+.statsrow strong{color:var(--ink)}
+
+
+/* CHOOSE FILES BUTTON: the blue button that opens the file picker */
+.filein{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.lbtn{display:inline-block;padding:11px 20px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:600;cursor:pointer}
+.filein:focus-visible + .lbtn{outline:3px solid var(--focus);outline-offset:2px}
+
+
+/* FOLDER TAG: the small label showing which folder a file is in */
+.tag{padding:2px 9px;border-radius:999px;border:1px solid var(--line);background:var(--tint);font-size:.82rem}
+
+
+/* LOGIN SCREEN: the card with Log in and Create account */
+.auth{min-height:100vh;display:grid;place-items:center;padding:20px;background:var(--bg)}
+.authcard{width:min(420px,100%);background:#fff;border-radius:24px;box-shadow:0 10px 34px rgba(25,45,90,.12);padding:26px}
+.authcard h1{font-size:1.7rem}
+.tabs{display:flex;gap:6px;background:#F2F4F9;border-radius:12px;padding:4px;margin:16px 0}
+.tabs button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font:inherit;cursor:pointer;color:#33415C}
+.tabs button[aria-pressed="true"]{background:#fff;color:#1D4ED8;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.field{margin-bottom:12px}
+.chk{display:flex;align-items:center;gap:8px;font-weight:400;margin:4px 0 8px}
+.chk input{width:auto}
+
+
+/* UI POLISH: softer shadows, rounder shapes, hover effects, file type badges, stat tiles */
+body{background:linear-gradient(180deg,#F8FAFD 0%,#EDF2FA 100%);background-attachment:fixed}
+.card{border-color:#E7ECF4;border-radius:16px;box-shadow:0 1px 2px rgba(25,45,90,.05),0 8px 24px rgba(25,45,90,.05)}
+.intro h1{font-size:2rem;letter-spacing:-.01em}
+.drop{border-radius:18px;border-color:#B9C7E6;background:linear-gradient(180deg,#F7FAFF,#EDF3FF);padding:34px 16px;transition:border-color .2s,background .2s,transform .2s}
+.drop.over{border-color:var(--accent);background:#E6EFFF;transform:scale(1.01)}
+.dicon{width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:#DDE8FF;color:var(--accent);display:grid;place-items:center}
+.dicon .ico{width:28px;height:28px}
+button.btn,.lbtn{border-radius:999px;transition:transform .12s,box-shadow .2s,background .2s}
+button.btn:hover,.lbtn:hover{box-shadow:0 6px 14px rgba(37,99,235,.22);transform:translateY(-1px)}
+button.btn.ghost:hover{background:var(--tint);box-shadow:none}
+button.btn.danger:hover{background:#FDECEA;box-shadow:none}
+input,select{border-color:#C9D3E3;border-radius:10px;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.15);outline:none}
+.folder{border-radius:16px;overflow:hidden;border-color:#E7ECF4;box-shadow:0 1px 2px rgba(25,45,90,.05),0 6px 18px rgba(25,45,90,.05)}
+.f-head{background:linear-gradient(90deg,#EAF1FF,#F7FAFF)}
+.f-head h3{display:flex;align-items:center;gap:8px}
+.f-head h3 .ico{width:20px;height:20px;color:var(--accent)}
+ul.files li{border-radius:10px;padding:10px 8px;transition:background .15s}
+ul.files li:hover{background:#F4F8FF}
+.ftype{display:inline-block;min-width:38px;text-align:center;margin-right:8px;padding:1px 6px;border-radius:6px;font-size:.7rem;font-weight:700;letter-spacing:.03em;background:#EEF1F6;color:#4A5568;vertical-align:middle}
+.t-pdf{background:#FDE8E6;color:#B3261E}
+.t-doc{background:#E3EEFF;color:#1D4ED8}
+.t-img{background:#E2F5EA;color:#1E7A46}
+.t-media{background:#F0E8FD;color:#6B3FC4}
+.t-zip{background:#FFF1D6;color:#9A5B00}
+.t-sheet{background:#E0F4F2;color:#0F766E}
+.statsrow{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.statsrow span{background:var(--tint);border-radius:12px;padding:12px;text-align:center}
+.statsrow strong{display:block;font-size:1.5rem;color:var(--accent)}
+.avatar{box-shadow:0 0 0 3px #E6EFFE}
+.side nav button{transition:background .15s,color .15s}
+.auth{background:radial-gradient(circle at 20% 10%,#E3ECFF 0,transparent 45%),radial-gradient(circle at 85% 90%,#EAF4FF 0,transparent 40%),#F6F8FC}
+.logo{width:50px;height:50px;border-radius:15px;background:linear-gradient(135deg,#2563EB,#7C9CFF);color:#fff;display:grid;place-items:center;margin-bottom:12px;box-shadow:0 8px 18px rgba(37,99,235,.3)}
+.logo .ico{width:26px;height:26px}
+.empty{padding:30px 10px}
+
+
+/* LOG OUT BUTTON: one wide button at the bottom of the sidebar */
+.side-bottom button{display:flex;align-items:center;justify-content:center;gap:10px;font:inherit;font-weight:600}
+
+
+/* PROFILE PANEL: big avatar card and the detail lists */
+.pcard{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.pcard .avatar{width:76px;height:76px;font-size:2rem}
+.pcard .pinfo{flex:1;min-width:180px;overflow-wrap:anywhere}
+.plist{list-style:none;margin:0;padding:0}
+.plist li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line);overflow-wrap:anywhere}
+.plist li:last-child{border-bottom:0}
+.plist li span{color:var(--muted)}
+.plist li strong{text-align:right}
+
+
+/* LOGIN SCREEN (new look): big greeting, pill inputs, wide button, sign up link. Stays white */
+.auth{background:#fff;padding:16px}
+.authcard{width:min(460px,100%);border-radius:30px;padding:38px 30px;border:1px solid #E7ECF4;box-shadow:0 12px 40px rgba(25,45,90,.10)}
+.authcard h1{font:700 2.7rem/1.1 "Segoe UI",system-ui,sans-serif;margin:0 0 28px;color:var(--ink)}
+.authcard label{font-size:1rem}
+#aName,#aUser,#aPass,#aPass2{border:2px solid #C9D3E3;border-radius:999px;padding:15px 22px;font-size:1rem}
+.checks{display:flex;gap:20px;flex-wrap:wrap;margin:6px 0 14px}
+.bigbtn{width:100%;height:58px;font-size:1.15rem}
+.switch{text-align:center;margin:20px 0 0}
+
+
+/* FOLDER LIST (like a phone file manager): folder rows, and the open folder with its files */
+.t-ppt{background:#FDE9D9;color:#C2410C}
+.flist{padding:4px 14px}
+.frow{display:flex;align-items:center;gap:14px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:14px 4px;text-align:left;font:inherit;color:var(--ink);cursor:pointer}
+.frow:last-child{border-bottom:0}
+.frow:hover{background:#F6F9FF}
+.yfolder{flex:0 0 auto;width:46px;height:46px}
+.ftext{flex:1;min-width:0;display:flex;flex-direction:column}
+.fn{font-weight:700;font-size:1.05rem;overflow-wrap:anywhere}
+.fd{color:var(--muted);font-size:.88rem}
+.chev{width:20px;height:20px;color:var(--muted);flex:0 0 auto}
+.crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.crumb .linkbtn{font-size:1rem}
+.fhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.fline{display:flex;align-items:center;gap:12px;min-width:0}
+.ftile{flex:0 0 auto;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:.72rem;font-weight:800;letter-spacing:.02em}
+.ftile:not([class*="t-"]){background:#EEF1F6;color:#4A5568}
+
+
+/* LINK BUTTONS: look like links (Sign up, My files) */
+.linkbtn{background:none;border:0;color:var(--accent);padding:0;font:inherit;cursor:pointer;text-decoration:underline;text-align:left}
+
+
+/* HIDDEN ITEMS: anything with the hidden attribute is not shown */
+[hidden]{display:none!important}
+
+
+/* ACCESSIBILITY: turns off animation for people who prefer less motion */
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<!-- LOGIN AND CREATE ACCOUNT SCREEN: shown until you are signed in -->
+<div class="auth" id="auth">
+  <div class="authcard">
+    <h1 id="authTitle">Hello!<br>Welcome</h1>
+
+    <form id="authForm" novalidate>
+      <div class="field" id="nameRow" hidden><label for="aName">Name</label>
+        <input id="aName" maxlength="30" autocomplete="name" placeholder="Name"></div>
+      <div class="field"><label for="aUser">Username or email</label>
+        <input id="aUser" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Username or email"></div>
+      <div class="field"><label for="aPass">Password</label>
+        <input id="aPass" type="password" autocomplete="current-password" placeholder="Password"></div>
+      <div class="field" id="confirmRow" hidden><label for="aPass2">Confirm password</label>
+        <input id="aPass2" type="password" autocomplete="new-password" placeholder="Confirm password"></div>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" id="aRemember"> Remember me</label>
+        <label class="chk"><input type="checkbox" id="aShow"> Show password</label>
+      </div>
+      <p class="msg err" id="aErr" role="alert"></p>
+      <button class="btn bigbtn" id="aSubmit" type="button">Login</button>
+    </form>
+
+    <p class="switch"><span id="authSwitchText">Don't have any account?</span> <button type="button" class="linkbtn" id="authSwitch">Sign up</button></p>
+
+    <p class="fmeta" style="margin:14px 0 0;text-align:center">Accounts are stored only in this browser. A forgotten password cannot be recovered.</p>
+    <p class="fmeta" id="aNote" style="margin:6px 0 0;color:var(--danger);text-align:center"></p>
+  </div>
+</div>
+
+
+<!-- APP: wraps the sidebar and the content -->
+<div class="app" id="app" hidden>
+
+
+<!-- TOP BAR: only shown on phones, has the menu button -->
+<div class="topbar">
+  <button type="button" id="menuBtn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  <b>FileSorter</b>
+</div>
+
+
+<!-- SCRIM: dark background shown behind the menu on phones -->
+<div class="scrim" id="scrim"></div>
+
+
+<!-- SIDEBAR: profile, search, menu, and bottom buttons -->
+<aside class="side" id="sidebar" aria-label="Sidebar">
+
+
+  <!-- PROFILE: avatar on the left, name on the right. Click it to edit your name -->
+  <button type="button" class="profile" id="editName" aria-label="Open your profile">
+    <span class="avatar" id="avatar" aria-hidden="true">G</span>
+    <span class="pname"><span class="n" id="pName">Guest</span><span class="r">Local account</span></span>
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+
+
+  <!-- SIDEBAR SEARCH: type here to find your files -->
+  <div class="sidesearch">
+    <label class="sr" for="sSearch">Search files</label>
+    <input id="sSearch" type="search" placeholder="Search files" autocomplete="off">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+  </div>
+
+
+  <!-- MENU: click an item to open its panel -->
+  <nav aria-label="Main">
+    <button type="button" data-view="upload" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5l5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><span>Upload files</span></button>
+    <button type="button" data-view="folders"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg><span>All folders</span></button>
+    <button type="button" data-view="files"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z"/><path d="M14 3v5h5"/></svg><span>All files</span><span class="badge" id="badgeFiles" hidden>0</span></button>
+  </nav>
+
+
+  <!-- BOTTOM BUTTONS: upload, edit name, delete everything -->
+  <div class="side-bottom">
+    <button type="button" id="btnLogout"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a1 1 0 00-1 1v14a1 1 0 001 1h4M16 8l4 4-4 4M20 12H9"/></svg><span>Log out</span></button>
+  </div>
+</aside>
+
+
+<!-- CONTENT: the panels are shown here, one at a time -->
+<main class="content" id="content">
+
+
+<!-- ERROR LINE: shows download errors -->
+<p class="msg err" id="lErr" role="alert"></p>
+
+
+<!-- UPLOAD PANEL: shows only the upload box -->
+<section id="view-upload" aria-labelledby="h-upload">
+  <div class="intro">
+    <h1 id="h-upload">Upload files</h1>
+    <p>Add a file and FileSorter stores it in the right folder based on its name. If no folder matches, a new folder is created for you.</p>
+  </div>
+  <div class="card">
+    <h2>Add files</h2>
+
+
+    <!-- UPLOAD BOX: choose files or drag and drop them here -->
+    <div class="drop" id="drop">
+      <div class="dicon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5l5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg></div>
+      <p>Drag files here, or choose files from your device. Maximum 25 MB per file.</p>
+      <input id="fileInput" class="filein" type="file" multiple>
+      <label class="lbtn" for="fileInput">Choose files</label>
+    </div>
+
+
+    <!-- UPLOAD MESSAGES: shows where each file was saved, or an error -->
+    <p class="msg" id="uMsg" role="status"></p>
+    <p class="msg err" id="uErr" role="alert"></p>
+  </div>
+</section>
+
+
+<!-- ALL FOLDERS PANEL: every folder and its files -->
+<section id="view-folders" aria-labelledby="h-folders" hidden>
+  <div class="intro">
+    <h1 id="h-folders">All folders</h1>
+    <p>Open a folder to see the files inside it.</p>
+  </div>
+  <div class="card" id="folderSearchCard">
+    <label for="qText">Search folders</label>
+    <input id="qText" type="search" placeholder="Type a folder name">
+  </div>
+  <h2 class="sr">Folders</h2>
+  <div id="folders" aria-live="polite"></div>
+</section>
+
+
+<!-- ALL FILES PANEL: one list of every file -->
+<section id="view-files" aria-labelledby="h-files" hidden>
+  <div class="intro">
+    <h1 id="h-files">All files</h1>
+    <p>Every file you have uploaded, in one list.</p>
+  </div>
+
+
+  <!-- STATS: total files, folders, and size -->
+  <div class="card"><div class="statsrow" aria-live="polite">
+    <span><strong id="sFiles">0</strong> files</span>
+    <span><strong id="sFolders">0</strong> folders</span>
+    <span><strong id="sSize">0 B</strong> total size</span>
+  </div></div>
+  <div class="card">
+    <div class="grid">
+      <div><label for="fText">Search file names</label><input id="fText" type="search" placeholder="Type part of a name"></div>
+      <div><label for="fFolder">Folder</label><select id="fFolder"><option value="">All folders</option></select></div>
+      <div><label for="fSort">Sort files by</label>
+        <select id="fSort">
+          <option value="name">Name (A to Z)</option>
+          <option value="new">Newest added</option>
+          <option value="size">Largest size</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <h2 class="sr">File list</h2>
+
+
+  <!-- FILE LIST: filled in by the script -->
+  <div class="card" id="allFiles" aria-live="polite"></div>
+</section>
+
+
+<!-- PROFILE PANEL: your account details and a summary of all your files -->
+<section id="view-profile" aria-labelledby="h-profile" hidden>
+  <div class="intro">
+    <h1 id="h-profile">Profile</h1>
+    <p>Your account details and a summary of everything you have uploaded.</p>
+  </div>
+
+  <div class="card pcard">
+    <div class="avatar" id="pcAvatar" aria-hidden="true">G</div>
+    <div class="pinfo">
+      <h2 id="pcName" style="font-size:1.4rem;margin:0">Guest</h2>
+    </div>
+    <button class="btn ghost" type="button" id="pcEdit">Edit name</button>
+  </div>
+
+  <div class="card"><div class="statsrow">
+    <span><strong id="pFiles">0</strong> files</span>
+    <span><strong id="pFolders">0</strong> folders</span>
+    <span><strong id="pSize">0 B</strong> total size</span>
+  </div></div>
+
+  <div class="card">
+    <h2>Storage details</h2>
+    <ul class="plist">
+      <li><span>Exact size</span><strong id="pBytes">0 bytes</strong></li>
+      <li><span>Average file size</span><strong id="pAvg">0 bytes</strong></li>
+      <li><span>Largest file</span><strong id="pLargest">None</strong></li>
+      <li><span>Newest file</span><strong id="pNewest">None</strong></li>
+      <li><span>Folder with the most files</span><strong id="pTopFolder">None</strong></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Files by type</h2>
+    <ul class="plist" id="pTypes"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Files in each folder</h2>
+    <ul class="plist" id="pFolderList"></ul>
+  </div>
+</section>
+
+</main>
+</div>
+
+
+<!-- SCRIPT: all the app logic (JavaScript) -->
+<script>
+(function(){
+  "use strict";
+
+
+  // The name used to save the app data in the browser
+  var DKEY = "";   // set after login: each account has its own data key
+
+
+  // The ID of the built-in "Unsorted" folder
+  var UNS = "unsorted";
+
+
+  // All the app data: folders, files list, and profile name
+  var data = {mode:"auto", folders:[], files:[], profileName:"Guest"};
+
+
+  // Used for downloading files (set when the page supports it)
+  var dl = {   // Normal download (works on any website). Replaced when the page supports its own download tool
+    save: function(o){
+      var url = URL.createObjectURL(o.data);
+      var a = document.createElement("a");
+      a.href = url; a.download = o.filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      return Promise.resolve();
+    }
+  };
+
+
+  // Words ignored when making a folder name from a file name
+  var STOP = ["st","nd","rd","th","final","copy","draft","new","file","doc","docx","pdf","txt","png","jpg","v","version","img","image"];
+
+
+  // Small folder icon shown in each folder header
+  var FOLDER_ICO = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>';
+
+
+  // Makes the colored file type badge (PDF, DOCX, PNG, ...) shown before a file name
+  function typeTag(name){
+    var m = /\.([A-Za-z0-9]+)$/.exec(name), ext = m ? m[1].toLowerCase() : "file", cls = "";
+    if(ext === "pdf") cls = "t-pdf";
+    else if(/^(docx?|odt|rtf|txt|md)$/.test(ext)) cls = "t-doc";
+    else if(/^(png|jpe?g|gif|webp|svg|bmp)$/.test(ext)) cls = "t-img";
+    else if(/^(mp4|mov|webm|mkv|mp3|wav)$/.test(ext)) cls = "t-media";
+    else if(/^(zip|rar|7z)$/.test(ext)) cls = "t-zip";
+    else if(/^pptx?$/.test(ext)) cls = "t-ppt";
+    else if(/^(xlsx?|csv)$/.test(ext)) cls = "t-sheet";
+    return '<span class="ftype ' + cls + '">' + esc(ext.slice(0,4).toUpperCase()) + '</span>';
+  }
+
+
+  // Short way to get an element by its ID
+  var $ = function(id){ return document.getElementById(id); };
+
+
+  // STORAGE: saves and loads folders, file list, and profile name
+
+
+  // Loads the saved folders, file list, and profile name from the browser
+  function load(){
+    if(!DKEY) return;
+    try{
+      var d = JSON.parse(localStorage.getItem(DKEY) || "null");
+      if(d && Array.isArray(d.folders) && Array.isArray(d.files)){
+        data = {mode: d.mode || "auto", folders: d.folders, files: d.files, profileName: (d.profileName || "Guest")};
+      }
+    }catch(e){}
+  }
+
+
+  // Saves the folders, file list, and profile name in the browser
+  function save(){
+    if(!DKEY) return;
+    try{ localStorage.setItem(DKEY, JSON.stringify(data)); }
+    catch(e){ storageOk = false; }
+  }
+
+
+  // FILE STORAGE: keeps a copy of each uploaded file inside this browser only
+
+
+  // Biggest file size allowed, and flags used when storage is blocked
+  var MAX_BYTES = 25 * 1024 * 1024;   // 25 MB per file
+  var memBlobs = {};        // fallback: keeps files for this visit if the browser blocks IndexedDB
+  var persistent = true;    // false when file copies could not be saved permanently
+  var storageOk = true;     // false when file records could not be saved permanently
+
+
+  // Opens the browser file database (IndexedDB) where file copies are kept
+  function openDB(){
+    return new Promise(function(resolve, reject){
+      if(!window.indexedDB){ reject(new Error("no-idb")); return; }
+      var req = indexedDB.open("filesorter-files", 1);
+      req.onupgradeneeded = function(){ req.result.createObjectStore("blobs"); };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error); };
+    });
+  }
+
+
+  // Runs one read or write job on the file database
+  function idb(mode, fn){
+    return openDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction("blobs", mode), out;
+        try{ out = fn(tx.objectStore("blobs")); }catch(e){ reject(e); return; }
+        tx.oncomplete = function(){ resolve(out && out.result !== undefined ? out.result : undefined); db.close(); };
+        tx.onerror = tx.onabort = function(){ reject(tx.error); db.close(); };
+      });
+    });
+  }
+
+
+  // Saves a copy of a file. If storage is blocked, keeps it for this visit only
+  function putBlob(id, blob){
+    return idb("readwrite", function(s){ return s.put(blob, id); })
+      .catch(function(){ persistent = false; memBlobs[id] = blob; });
+  }
+
+
+  // Gets a stored file so it can be downloaded
+  function getBlob(id){
+    if(memBlobs[id]) return Promise.resolve(memBlobs[id]);
+    return idb("readonly", function(s){ return s.get(id); });
+  }
+
+
+  // Deletes one stored file
+  function delBlob(id){
+    delete memBlobs[id];
+    return idb("readwrite", function(s){ return s.delete(id); });
+  }
+
+
+  // Deletes all stored files
+  function clearBlobs(){
+    memBlobs = {};
+    return idb("readwrite", function(s){ return s.clear(); });
+  }
+
+
+  // HELPERS: small tools used by many parts of the app
+
+
+  // Makes text safe before it is shown on the page
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+
+  // Makes a unique ID for each folder and file
+  function newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+
+  // Turns a size in bytes into easy text like 2.5 MB
+  function fmtSize(b){
+    return b < 1024 ? b + " B" : b < 1048576 ? (b/1024).toFixed(1) + " KB" : (b/1048576).toFixed(1) + " MB";
+  }
+
+
+  // Makes text lowercase and removes spaces and symbols, so names can be compared
+  function norm(s){ return String(s).toLowerCase().replace(/[^a-z0-9]/g, ""); }
+
+
+  // Cleans a file name and splits it into separate words
+  function words(name){
+    var base = name.replace(/\.[^.]+$/, "")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/[_\-.]+/g, " ")
+      .replace(/\s+/g, " ").trim();
+    var out = [];
+    base.split(" ").forEach(function(t){
+      // A course code such as CPP106 is kept whole
+      if(/^[A-Za-z]{2,5}\d{2,4}$/.test(t)){ out.push(t); return; }
+      t.replace(/\d+/g, " ").split(" ").forEach(function(part){ if(part) out.push(part); });
+    });
+    return out.filter(function(w){ return w.length > 1 && STOP.indexOf(w.toLowerCase()) < 0; });
+  }
+
+
+  // Makes a folder name from a file name
+  function suggestName(fileName){
+    var w = words(fileName);
+    if(!w.length) return "";
+    // If the name has a course code (like CPP106), the folder is named after the code
+    var code = w.filter(function(x){ return /^[A-Za-z]{2,5}\d{2,4}$/.test(x); })[0];
+    if(code) return code.toUpperCase();
+    return w.slice(0,3).map(function(x){ return x.charAt(0).toUpperCase() + x.slice(1).toLowerCase(); }).join(" ");
+  }
+
+
+  // Finds a folder using its ID
+  function folderById(id){ return data.folders.filter(function(f){ return f.id === id; })[0]; }
+
+
+  // Finds a folder using its name
+  function folderByName(n){
+    var k = n.trim().toLowerCase();
+    return data.folders.filter(function(f){ return f.name.toLowerCase() === k; })[0];
+  }
+
+
+  // Gets the name to show for a folder ID
+  function folderLabel(id){ return id === UNS ? "Unsorted" : (folderById(id) ? folderById(id).name : "Unsorted"); }
+
+
+  // MATCHING: decides which folder a file belongs to, based on its name
+
+
+  // Checks if a file name matches an existing folder. Returns the best match
+  function findFolder(fileName){
+    var fn = norm(fileName.replace(/\.[^.]+$/, ""));
+    var best = null, bestScore = 0;
+    data.folders.forEach(function(f){
+      var keys = words(f.name).concat(f.keywords || []);
+      var score = 0;
+      keys.forEach(function(k){
+        var nk = norm(k);
+        if(nk.length >= 3 && fn.indexOf(nk) >= 0) score++;
+      });
+      if(score > bestScore){ bestScore = score; best = f; }
+    });
+    return best;
+  }
+
+
+  // Creates a new folder
+  function addFolder(name, keywords){
+    var f = {id:newId(), name:name, keywords:keywords || [], created:Date.now()};
+    data.folders.push(f);
+    return f;
+  }
+
+
+  // Saves the file and adds it to the files list
+  function addFileRecord(file, folderId){
+    var id = newId();
+    return putBlob(id, file).then(function(){
+      data.files.push({id:id, name:file.name, size:file.size, type:file.type || "unknown", folderId:folderId, added:Date.now(), stored:true});
+    });
+  }
+
+
+  // UPLOADING FILES: sorts each chosen file into a folder
+
+
+  // Sorts one file: finds a folder, makes a new one if needed, then saves the file
+  function sortOne(file, notes){
+    if(file.size > MAX_BYTES){
+      notes.errs.push('"' + file.name + '" is larger than 25 MB and was not added.');
+      return Promise.resolve();
+    }
+    var target, note;
+
+
+    // Step 1: look for a folder that already matches the file name
+    var match = findFolder(file.name);
+    if(match){
+      target = match.id; note = '"' + file.name + '" saved in "' + match.name + '".';
+    }else{
+
+
+      // Step 2: no match, so make a new folder name from the file name
+      var suggested = suggestName(file.name);
+      if(suggested){
+        var existing = folderByName(suggested);
+        var f = existing || addFolder(suggested, []);
+        target = f.id;
+        note = existing ? '"' + file.name + '" saved in "' + f.name + '".'
+                        : 'Created folder "' + f.name + '" and saved "' + file.name + '" there.';
+      }else{
+        target = UNS; note = '"' + file.name + '" saved in Unsorted.';
+      }
+    }
+    return addFileRecord(file, target).then(function(){ notes.ok.push(note); })
+      .catch(function(){ notes.errs.push('"' + file.name + '" could not be stored. Your browser may be blocking storage or is out of space.'); });
+  }
+
+
+  // Handles all the chosen files one by one, then shows the result message
+  function handleFiles(list){
+    var arr = Array.prototype.slice.call(list || []);
+    if(!arr.length) return;
+    $("uMsg").textContent = ""; $("uErr").textContent = "";
+    var notes = {ok:[], errs:[]};
+    var chain = Promise.resolve();
+    arr.forEach(function(file){ chain = chain.then(function(){ return sortOne(file, notes); }); });
+    chain.then(function(){
+      save(); renderAll();
+      $("uMsg").textContent = notes.ok.join(" ");
+      var warn = (notes.ok.length && (!persistent || !storageOk))
+        ? " Note: your browser is blocking storage here, so your files are kept only until you refresh or close this page. Open the file in a normal browser tab (Chrome, Edge, Firefox, or Safari) to keep them."
+        : "";
+      $("uErr").textContent = (notes.errs.join(" ") + warn).trim();
+    });
+  }
+
+
+  // When the user picks files with the Choose files button
+  $("fileInput").addEventListener("change", function(e){
+    var list = Array.prototype.slice.call(e.target.files || []);
+    e.target.value = "";
+    handleFiles(list);
+  });
+
+
+  // Drag and drop: lets the user drop files on the upload box
+  var drop = $("drop");
+  ["dragenter","dragover"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave","drop"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); });
+  });
+  drop.addEventListener("drop", function(e){ handleFiles(e.dataTransfer && e.dataTransfer.files); });
+
+
+  // LIST BUTTONS: rename, delete, remove, download, and move
+
+
+  // One click handler for all buttons inside the lists
+  $("content").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]"); if(!b) return;
+    var act = b.getAttribute("data-act"), id = b.getAttribute("data-id");
+    if(act === "openfolder"){ openFolder = id; renderFolders(); window.scrollTo(0,0); return; }
+    if(act === "up"){ openFolder = null; renderFolders(); return; }
+    if(act === "rename"){   // Rename a folder
+      var f = folderById(id); if(!f) return;
+      var nn = prompt("New folder name:", f.name);
+      if(nn === null) return;
+      nn = nn.trim();
+      if(!nn) return;
+      var dup = folderByName(nn);
+      if(nn.toLowerCase() === "unsorted" || (dup && dup.id !== id)){ alert("That folder name is already used."); return; }
+      f.name = nn.slice(0,40); save(); renderAll();
+    }else if(act === "delete"){   // Delete a folder (its files move to Unsorted)
+      var fd = folderById(id); if(!fd) return;
+      var n = data.files.filter(function(x){ return x.folderId === id; }).length;
+      if(confirm('Delete folder "' + fd.name + '"? ' + (n ? n + " file record(s) will move to Unsorted." : ""))){
+        data.files.forEach(function(x){ if(x.folderId === id) x.folderId = UNS; });
+        data.folders = data.folders.filter(function(x){ return x.id !== id; });
+        openFolder = null;
+        save(); renderAll();
+      }
+    }else if(act === "remove"){   // Remove one file
+      data.files = data.files.filter(function(x){ return x.id !== id; });
+      delBlob(id).catch(function(){});
+      save(); renderAll();
+    }else if(act === "download"){   // Download one file
+      var rec = data.files.filter(function(x){ return x.id === id; })[0]; if(!rec) return;
+      if(!dl){ $("lErr").textContent = "Downloads are not available in this view."; return; }
+      $("lErr").textContent = "";
+      getBlob(id).then(function(blob){
+        if(!blob){ $("lErr").textContent = '"' + rec.name + '" has no stored copy. Add the file again to download it.'; return; }
+        return dl.save({filename: rec.name, data: blob}).catch(function(err){
+          var c = err && err.code;
+          if(c === "declined") return;
+          $("lErr").textContent = (c === "rejected_extension" || c === "extension_not_enabled")
+            ? 'Files of this type cannot be downloaded from here: "' + rec.name + '".'
+            : "The file could not be downloaded. Try again.";
+        });
+      }).catch(function(){ $("lErr").textContent = "Could not read the stored file."; });
+    }
+  });
+
+
+  // Moves a file to another folder when its dropdown is changed
+  $("content").addEventListener("change", function(e){
+    var sel = e.target.closest("select[data-act='move']"); if(!sel) return;
+    var id = sel.getAttribute("data-id");
+    data.files.forEach(function(x){ if(x.id === id) x.folderId = sel.value; });
+    save(); renderAll();
+  });
+
+
+  // SHOWING FOLDERS: search, filter, sort, and the folder list
+
+
+  // Fills the Folder dropdowns with the folder names
+  function renderFilterOptions(){
+    var opts = '<option value="">All folders</option><option value="' + UNS + '">Unsorted</option>' +
+      data.folders.slice().sort(function(a,b){ return a.name.localeCompare(b.name); })
+        .map(function(f){ return '<option value="' + f.id + '">' + esc(f.name) + '</option>'; }).join("");
+    ["fFolder"].forEach(function(id){
+      var sel = $(id), cur = sel.value;
+      sel.innerHTML = opts;
+      sel.value = (cur === UNS || folderById(cur)) ? cur : "";
+    });
+  }
+
+
+  // Updates the file count, folder count, total size, and the blue badge
+  function renderStats(){
+    var total = data.files.reduce(function(s,f){ return s + f.size; }, 0);
+    $("sFiles").textContent = data.files.length;
+    $("sFolders").textContent = data.folders.length;
+    $("sSize").textContent = fmtSize(total);
+    $("badgeFiles").textContent = data.files.length;
+    $("badgeFiles").hidden = !data.files.length;
+  }
+
+
+  // Draws the All folders panel: first a list of folders, then the files inside the folder you open
+  var openFolder = null;   // ID of the open folder (null = show the list of folders)
+  var YFOLDER = '<svg class="yfolder" viewBox="0 0 24 24" aria-hidden="true"><path fill="#F6C84C" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path fill="#F9DA7A" d="M3 10h18v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-7z"/></svg>';
+  var CHEV = '<svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+
+  // The date shown for a folder (day/month/year)
+  function folderDate(id){
+    var f = folderById(id), t = f && f.created ? f.created : 0;
+    if(!t){
+      var times = data.files.filter(function(x){ return x.folderId === id; }).map(function(x){ return x.added; });
+      t = times.length ? Math.min.apply(null, times) : Date.now();
+    }
+    return new Date(t).toLocaleDateString("en-GB");
+  }
+
+
+  function renderFolders(){
+    var box = $("folders");
+    var open = (openFolder === UNS || (openFolder && folderById(openFolder))) ? openFolder : null;
+    openFolder = open;
+    $("folderSearchCard").hidden = !!open;
+    var countIn = function(id){ return data.files.filter(function(x){ return x.folderId === id; }).length; };
+
+    // 1) The list of folders
+    if(!open){
+      var q = $("qText").value.trim().toLowerCase();
+      var all = [{id:UNS, name:"Unsorted"}].concat(data.folders.slice().sort(function(a,b){ return a.name.localeCompare(b.name); }));
+      var rows = all.filter(function(f){
+        if(f.id === UNS && !countIn(UNS)) return false;
+        return !q || f.name.toLowerCase().indexOf(q) >= 0;
+      });
+      if(!rows.length){
+        box.innerHTML = '<div class="card"><p class="empty">' + ((data.folders.length || data.files.length)
+          ? "No folder matches your search." : "No folders yet. Open Upload files in the sidebar to add a file.") + '</p></div>';
+        return;
+      }
+      box.innerHTML = '<div class="card flist">' + rows.map(function(f){
+        return '<button type="button" class="frow" data-act="openfolder" data-id="' + f.id + '" aria-label="Open folder ' + esc(f.name) + '">' + YFOLDER +
+          '<span class="ftext"><span class="fn">' + esc(f.name) + '</span><span class="fd">' + folderDate(f.id) + ' - (' + countIn(f.id) + ')</span></span>' + CHEV + '</button>';
+      }).join("") + '</div>';
+      return;
+    }
+
+    // 2) The files inside the open folder
+    var folder = open === UNS ? {id:UNS, name:"Unsorted"} : folderById(open);
+    var items = data.files.filter(function(x){ return x.folderId === open; }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+    var size = items.reduce(function(s,x){ return s + x.size; }, 0);
+    var moveOpts = function(cur){
+      return '<option value="' + UNS + '"' + (cur === UNS ? " selected" : "") + '>Unsorted</option>' +
+        data.folders.map(function(g){
+          return '<option value="' + g.id + '"' + (cur === g.id ? " selected" : "") + '>' + esc(g.name) + '</option>';
+        }).join("");
+    };
+    var tools = open === UNS ? "" : '<div class="f-tools">' +
+      '<button type="button" class="btn ghost sm" data-act="rename" data-id="' + open + '" aria-label="Rename folder ' + esc(folder.name) + '">Rename</button>' +
+      '<button type="button" class="btn danger sm" data-act="delete" data-id="' + open + '" aria-label="Delete folder ' + esc(folder.name) + '">Delete</button></div>';
+    var list = items.length ? '<ul class="files">' + items.map(function(x){
+      var tag = typeTag(x.name);
+      return '<li><div class="fline">' + tag.replace('class="ftype', 'class="ftile') +
+        '<div><div class="fname">' + esc(x.name) + '</div><div class="fd">' + new Date(x.added).toLocaleDateString("en-GB") + ' - ' + fmtSize(x.size) + '</div></div></div>' +
+        '<div class="row-tools"><label class="sr" for="mv-' + x.id + '">Move ' + esc(x.name) + '</label>' +
+        '<select id="mv-' + x.id + '" data-act="move" data-id="' + x.id + '">' + moveOpts(x.folderId) + '</select>' +
+        (dl ? '<button type="button" class="btn ghost sm" data-act="download" data-id="' + x.id + '" aria-label="Download ' + esc(x.name) + '">Download</button>' : '') +
+        '<button type="button" class="btn danger sm" data-act="remove" data-id="' + x.id + '" aria-label="Remove ' + esc(x.name) + '">Remove</button></div></li>';
+    }).join("") + '</ul>' : '<p class="empty">This folder is empty.</p>';
+    box.innerHTML = '<div class="crumb"><button type="button" class="linkbtn" data-act="up">My files</button><span aria-hidden="true">&gt;</span><strong>' + esc(folder.name) + '</strong></div>' +
+      '<div class="card"><div class="fhead"><div><div class="fn">' + esc(folder.name) + '</div><div class="fd">' + items.length + ' file' + (items.length === 1 ? "" : "s") + ' - ' + fmtSize(size) + '</div></div>' + tools + '</div>' + list + '</div>';
+  }
+
+
+  // PROFILE: the name and avatar in the sidebar
+
+
+  // Shows the name and the first letter in the avatar
+  function renderProfile(){
+    var n = (data.profileName || "Guest").trim() || "Guest";
+    $("pName").textContent = n;
+    $("avatar").textContent = n.charAt(0).toUpperCase();
+    renderProfilePanel();
+  }
+
+
+  // Fills the Profile panel: account details, counts, sizes, and file summaries
+  function renderProfilePanel(){
+    var n = (data.profileName || "Guest").trim() || "Guest";
+    var files = data.files, total = files.reduce(function(s,f){ return s + f.size; }, 0);
+    $("pcAvatar").textContent = n.charAt(0).toUpperCase();
+    $("pcName").textContent = n;
+
+    // Totals
+    $("pFiles").textContent = files.length;
+    $("pFolders").textContent = data.folders.length;
+    $("pSize").textContent = fmtSize(total);
+    $("pBytes").textContent = total.toLocaleString() + " bytes";
+    $("pAvg").textContent = files.length ? Math.round(total / files.length).toLocaleString() + " bytes (" + fmtSize(total / files.length) + ")" : "0 bytes";
+
+    // Largest and newest file
+    var big = files.slice().sort(function(a,b){ return b.size - a.size; })[0];
+    var neu = files.slice().sort(function(a,b){ return b.added - a.added; })[0];
+    $("pLargest").textContent = big ? big.name + " (" + big.size.toLocaleString() + " bytes)" : "None";
+    $("pNewest").textContent = neu ? neu.name : "None";
+
+    // Files and sizes per folder (including Unsorted)
+    var groups = [{id:UNS, name:"Unsorted"}].concat(data.folders.map(function(f){ return {id:f.id, name:f.name}; }));
+    var rows = groups.map(function(g){
+      var items = files.filter(function(x){ return x.folderId === g.id; });
+      return {name:g.name, count:items.length, size:items.reduce(function(s,x){ return s + x.size; }, 0)};
+    });
+    var top = rows.slice().sort(function(a,b){ return b.count - a.count; })[0];
+    $("pTopFolder").textContent = (top && top.count) ? top.name + " (" + top.count + ")" : "None";
+    $("pFolderList").innerHTML = rows.filter(function(r){ return r.count || r.name !== "Unsorted"; }).map(function(r){
+      return '<li><span>' + esc(r.name) + '</span><strong>' + r.count + ' file' + (r.count === 1 ? "" : "s") + ' &middot; ' + r.size.toLocaleString() + ' bytes</strong></li>';
+    }).join("") || '<li><span>No folders yet</span></li>';
+
+    // Files by type (PDF, PNG, ...)
+    var types = {};
+    files.forEach(function(f){
+      var m = /\.([A-Za-z0-9]+)$/.exec(f.name), k = m ? m[1].toUpperCase() : "NO TYPE";
+      types[k] = types[k] || {count:0, size:0};
+      types[k].count++; types[k].size += f.size;
+    });
+    $("pTypes").innerHTML = Object.keys(types).sort(function(a,b){ return types[b].count - types[a].count; }).map(function(k){
+      return '<li><span>' + esc(k) + '</span><strong>' + types[k].count + ' file' + (types[k].count === 1 ? "" : "s") + ' &middot; ' + types[k].size.toLocaleString() + ' bytes</strong></li>';
+    }).join("") || '<li><span>No files yet</span></li>';
+  }
+
+
+  // Lets the user change the profile name
+  function editName(){
+    var n = prompt("Your name (shown in the sidebar):", data.profileName || "Guest");
+    if(n === null) return;
+    n = n.trim().slice(0, 30);
+    data.profileName = n || "Guest";
+    save(); renderProfile();
+  }
+
+
+  // Clicking the profile edits the name
+  $("editName").addEventListener("click", function(){ show("profile"); });
+  $("pcEdit").addEventListener("click", editName);
+
+
+
+
+  // SIDEBAR SEARCH AND PHONE MENU
+
+
+  // Typing in the sidebar search opens All files and filters the list
+  $("sSearch").addEventListener("input", function(){
+    $("fText").value = this.value;
+    show("files", true); renderAllFiles();
+  });
+  $("sSearch").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); setMenu(false); } });
+
+
+  // Opens or closes the menu on phones
+  function setMenu(open){
+    $("app").classList.toggle("open", open);
+    $("menuBtn").setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+
+  // Menu button, dark background, and Escape key close or open the menu
+  $("menuBtn").addEventListener("click", function(){ setMenu(!$("app").classList.contains("open")); });
+  $("scrim").addEventListener("click", function(){ setMenu(false); });
+  document.addEventListener("keydown", function(e){ if(e.key === "Escape") setMenu(false); });
+
+
+  // ALL FILES PANEL: one list of every file
+
+
+  // Draws the All files panel (search, filter, and sort included)
+  function renderAllFiles(){
+    var q = $("fText").value.trim().toLowerCase(), ff = $("fFolder").value, sort = $("fSort").value;
+    var items = data.files.filter(function(x){
+      return (!ff || x.folderId === ff) && (!q || x.name.toLowerCase().indexOf(q) >= 0);
+    });
+    items.sort(function(a,b){
+      if(sort === "size") return b.size - a.size;
+      if(sort === "new") return b.added - a.added;
+      return a.name.localeCompare(b.name);
+    });
+    var box = $("allFiles");
+    if(!items.length){
+      box.innerHTML = '<p class="empty">' + (data.files.length ? "Nothing matches your search or filter." : "No files yet. Open Upload files in the sidebar to add one.") + '</p>';
+      return;
+    }
+    var moveOpts = function(cur){
+      return '<option value="' + UNS + '"' + (cur === UNS ? " selected" : "") + '>Unsorted</option>' +
+        data.folders.map(function(g){
+          return '<option value="' + g.id + '"' + (cur === g.id ? " selected" : "") + '>' + esc(g.name) + '</option>';
+        }).join("");
+    };
+    box.innerHTML = '<ul class="files">' + items.map(function(x){
+      return '<li><div><div class="fname">' + typeTag(x.name) + esc(x.name) + '</div><div class="fmeta">' + fmtSize(x.size) + ' <span class="tag">' + esc(folderLabel(x.folderId)) + '</span></div></div>' +
+        '<div class="row-tools"><label class="sr" for="fmv-' + x.id + '">Move ' + esc(x.name) + '</label>' +
+        '<select id="fmv-' + x.id + '" data-act="move" data-id="' + x.id + '">' + moveOpts(x.folderId) + '</select>' +
+        (dl ? '<button type="button" class="btn ghost sm" data-act="download" data-id="' + x.id + '" aria-label="Download ' + esc(x.name) + '">Download</button>' : '') +
+        '<button type="button" class="btn danger sm" data-act="remove" data-id="' + x.id + '" aria-label="Remove ' + esc(x.name) + '">Remove</button></div></li>';
+    }).join("") + '</ul>';
+  }
+
+
+  // Redraws the All files list when the search or filters change
+  ["fText","fFolder","fSort"].forEach(function(id){
+    $(id).addEventListener("input", renderAllFiles);
+    if(id !== "fText") $(id).addEventListener("change", renderAllFiles);
+  });
+
+
+  // Redraws everything on the page
+  function renderAll(){ renderStats(); renderProfile(); renderFilterOptions(); renderFolders(); renderAllFiles(); }
+
+
+  // Redraws the All folders list when the search or filters change
+  $("qText").addEventListener("input", renderFolders);
+
+
+  // ---------- ACCOUNTS ----------
+
+
+  // Names used to save accounts and the current login in the browser
+  var ACCKEY = "filesorter.accounts.v1";
+  var SESSKEY = "filesorter.session.v1";
+  var accounts = [];        // all accounts created in this browser
+  var user = null;          // the account that is logged in right now
+  var authMode = "login";   // "login" or "create"
+
+
+  // Loads the accounts saved in this browser
+  function loadAccounts(){
+    try{
+      var a = JSON.parse(localStorage.getItem(ACCKEY) || "[]");
+      accounts = Array.isArray(a) ? a : [];
+    }catch(e){ accounts = []; }
+  }
+
+
+  // Saves the accounts in this browser
+  function saveAccounts(){
+    try{ localStorage.setItem(ACCKEY, JSON.stringify(accounts)); }
+    catch(e){ storageOk = false; }
+  }
+
+
+  // Checks that the browser can protect passwords
+  function hasCrypto(){
+    return !!(window.crypto && window.crypto.subtle && window.TextEncoder);
+  }
+
+
+  // Turns bytes into text, and text back into bytes (for saving the salt and hash)
+  function b64(buf){
+    var s = "";
+    new Uint8Array(buf).forEach(function(c){ s += String.fromCharCode(c); });
+    return btoa(s);
+  }
+  function unb64(str){
+    var s = atob(str), a = new Uint8Array(s.length);
+    for(var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  }
+
+
+  // Turns a password into a salted hash (PBKDF2), so the real password is never saved
+  function hashPw(pw, saltBytes){
+    return crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"])
+      .then(function(key){
+        return crypto.subtle.deriveBits({name:"PBKDF2", salt:saltBytes, iterations:150000, hash:"SHA-256"}, key, 256);
+      }).then(b64);
+  }
+
+
+  // Compares two texts one character at a time
+  function sameText(a, b){
+    if(a.length !== b.length) return false;
+    var r = 0;
+    for(var i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return r === 0;
+  }
+
+
+  // Finds an account by username (not case sensitive)
+  function findAccount(name){
+    var k = name.trim().toLowerCase();
+    return accounts.filter(function(a){ return a.username.toLowerCase() === k; })[0];
+  }
+
+
+  // Creates a new account after checking the username and password
+  function createAccount(name, pw, pw2, displayName){
+    function fail(m){ return Promise.reject(new Error(m)); }
+    if(!hasCrypto()) return fail("Accounts need a secure connection (https). Open the site from its https link.");
+    displayName = (displayName || "").trim();
+    if(!displayName) return fail("Enter your name.");
+    if(!name) return fail("Enter a username.");
+    if(pw.length < 8) return fail("Password must be at least 8 characters.");
+    if(pw !== pw2) return fail("The two passwords do not match.");
+    if(findAccount(name)) return fail("That username is already taken.");
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    return hashPw(pw, salt).then(function(hash){
+      var acc = {id:newId(), username:name, name:displayName.slice(0,30), salt:b64(salt), hash:hash, created:Date.now()};
+      // The first account takes over any files saved before accounts existed
+      if(accounts.length === 0){
+        try{
+          var old = localStorage.getItem("filesorter.data.v1");
+          if(old) localStorage.setItem("filesorter.data.v1." + acc.id, old);
+        }catch(e){}
+      }
+      accounts.push(acc);
+      saveAccounts();
+      signIn(acc);
+    });
+  }
+
+
+  // Logs in. The same message is shown for a wrong username or a wrong password
+  function logIn(name, pw){
+    if(!hasCrypto()) return Promise.reject(new Error("Accounts need a secure connection (https). Open the site from its https link."));
+    var acc = findAccount(name);
+    var salt = acc ? unb64(acc.salt) : new Uint8Array(16);
+    return hashPw(pw, salt).then(function(hash){
+      if(!acc || !sameText(hash, acc.hash)) throw new Error("Wrong username or password.");
+      signIn(acc);
+    });
+  }
+
+
+  // Starts a session: loads this account's folders and files
+  function signIn(acc, keepStorage){
+    user = {id:acc.id, username:acc.username};
+    DKEY = "filesorter.data.v1." + acc.id;
+    data = {mode:"auto", folders:[], files:[], profileName:(acc.name || acc.username)};
+    load();
+    if(!data.profileName || data.profileName === "Guest") data.profileName = acc.name || acc.username;
+    if(!keepStorage){
+      try{ sessionStorage.removeItem(SESSKEY); localStorage.removeItem(SESSKEY); }catch(e){}
+      try{
+        if($("aRemember").checked) localStorage.setItem(SESSKEY, acc.id);
+        else sessionStorage.setItem(SESSKEY, acc.id);
+      }catch(e){}
+    }
+    $("authForm").reset();
+    $("aErr").textContent = "";
+    $("uMsg").textContent = "";
+    $("uErr").textContent = "";
+    renderAll();
+    screen();
+    show("upload");
+  }
+
+
+  // Logs out (your data stays saved in this browser)
+  function signOut(){
+    user = null;
+    DKEY = "";
+    data = {mode:"auto", folders:[], files:[], profileName:"Guest"};
+    try{ sessionStorage.removeItem(SESSKEY); localStorage.removeItem(SESSKEY); }catch(e){}
+    setAuthMode("login");
+    screen();
+    document.title = "Log in - FileSorter";
+    window.scrollTo(0,0);
+  }
+
+
+  // Shows the login screen or the app, depending on whether someone is logged in
+  function screen(){
+    $("auth").hidden = !!user;
+    $("app").hidden = !user;
+  }
+
+
+  // Switches the form between Log in and Create account
+  function setAuthMode(m){
+    authMode = m;
+    $("authTitle").innerHTML = m === "create" ? "Create<br>account" : "Hello!<br>Welcome";
+    $("authSwitchText").textContent = m === "create" ? "Already have an account?" : "Don't have any account?";
+    $("authSwitch").textContent = m === "create" ? "Log in" : "Sign up";
+    $("nameRow").hidden = m !== "create";
+    $("confirmRow").hidden = m !== "create";
+    $("aSubmit").textContent = m === "create" ? "Create account" : "Login";
+    $("aPass").setAttribute("autocomplete", m === "create" ? "new-password" : "current-password");
+    $("aErr").textContent = "";
+  }
+
+
+  // Runs when the user presses Log in / Create account, or presses Enter in the form
+  function submitAuth(){
+    var btn = $("aSubmit");
+    if(btn.disabled) return;
+    var name = $("aUser").value.trim(), pw = $("aPass").value;
+    $("aErr").textContent = "";
+    btn.disabled = true;
+    var job = authMode === "create" ? createAccount(name, pw, $("aPass2").value, $("aName").value) : logIn(name, pw);
+    job.catch(function(err){
+      $("aErr").textContent = (err && err.message) ? err.message : "Something went wrong. Please try again.";
+    }).then(function(){ btn.disabled = false; });
+  }
+  $("authForm").addEventListener("submit", function(e){ e.preventDefault(); submitAuth(); });
+  $("aSubmit").addEventListener("click", submitAuth);
+  ["aName","aUser","aPass","aPass2"].forEach(function(id){
+    $(id).addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitAuth(); } });
+  });
+
+
+  // Account buttons
+  $("authSwitch").addEventListener("click", function(){ setAuthMode(authMode === "create" ? "login" : "create"); });
+  $("aShow").addEventListener("change", function(){
+    var t = this.checked ? "text" : "password";
+    $("aPass").type = t; $("aPass2").type = t;
+  });
+  $("btnLogout").addEventListener("click", signOut);
+
+
+  // NAVIGATION: switching between the panels
+
+
+  // The panels of the app and their titles
+  var VIEWS = {upload:"Upload files", folders:"All folders", files:"All files", profile:"Profile"};
+
+
+  // Shows one panel and hides the others
+  function show(view, keepMenu){
+    var v = VIEWS[view] ? view : "upload";
+    Object.keys(VIEWS).forEach(function(k){ $("view-" + k).hidden = k !== v; });
+    document.querySelectorAll("nav button").forEach(function(b){
+      if(b.getAttribute("data-view") === v) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current");
+    });
+    document.title = VIEWS[v] + " - FileSorter";
+    $("lErr").textContent = "";
+    if(!keepMenu) setMenu(false);
+    window.scrollTo(0,0);
+  }
+
+
+  // Menu buttons: open the panel named in data-view
+  document.addEventListener("click", function(e){
+    var el = e.target.closest("[data-view]"); if(!el) return;
+    e.preventDefault();
+    var v = el.getAttribute("data-view");
+    if(v === "folders"){ openFolder = null; renderFolders(); }
+    show(v);
+    try{ history.replaceState(null,"","#" + v); }catch(err){}
+  });
+
+
+  // Opens the right panel when the page address changes
+  window.addEventListener("hashchange", function(){
+    var hs = location.hash.replace("#","");
+    if(user) show(hs);
+  });
+
+
+  // START: runs when the page opens
+
+
+  // Load the accounts, restore the login if this tab is still signed in, then open the right screen
+  loadAccounts();
+  var notes = [];
+  if(!hasCrypto()) notes.push("This view cannot protect passwords, so accounts are unavailable. Open the site in a normal browser tab over https.");
+  try{
+    localStorage.setItem("filesorter.test", "1");
+    localStorage.removeItem("filesorter.test");
+  }catch(e){
+    notes.push("Your browser is blocking storage here, so accounts last only until you close or refresh this page.");
+  }
+  $("aNote").textContent = notes.join(" ");
+  try{
+    if(window.claude && typeof window.claude.use === "function"){
+      window.claude.use("downloads").then(function(d){ if(d){ dl = d; renderFolders(); renderAllFiles(); } }).catch(function(){});
+    }
+  }catch(e){}
+  var savedId = null;
+  try{ savedId = sessionStorage.getItem(SESSKEY); }catch(e){}
+  if(!savedId){ try{ savedId = localStorage.getItem(SESSKEY); }catch(e){} }
+  var savedAcc = savedId ? accounts.filter(function(a){ return a.id === savedId; })[0] : null;
+  if(savedAcc){ signIn(savedAcc, true); } else { screen(); document.title = "Log in - FileSorter"; }
+  var startHash = location.hash.replace("#","");
+  if(user){ show(startHash); }
+
+
+// End of the app
+})();
+</script>
+</body>
+</html>
