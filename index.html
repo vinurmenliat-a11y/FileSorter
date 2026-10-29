@@ -266,6 +266,24 @@ ul.files li:hover{background:#F4F8FF}
 .linkbtn{background:none;border:0;color:var(--accent);padding:0;font:inherit;cursor:pointer;text-decoration:underline;text-align:left}
 
 
+/* FILE PREVIEW WINDOW: the pop-up that shows what is inside a file */
+.fnamebtn{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--ink);text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.fnamebtn:hover{color:var(--accent);text-decoration:underline}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(10,20,40,.55);display:grid;place-items:center;padding:16px}
+.pvcard{background:#fff;border-radius:20px;width:min(900px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.pvhead{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.pvhead h2{font-size:1.05rem;overflow-wrap:anywhere}
+.pvbody{padding:16px;overflow:auto;flex:1;min-height:180px}
+.pvbody img,.pvbody video{max-width:100%;max-height:70vh;display:block;margin:0 auto;border-radius:8px}
+.pvbody audio{width:100%}
+.pvbody canvas{max-width:100%;height:auto;display:block;margin:0 auto 12px;border:1px solid var(--line)}
+.pvframe{width:100%;height:70vh;border:1px solid var(--line);border-radius:8px}
+.pvtext{white-space:pre-wrap;overflow-wrap:anywhere;font:.9rem/1.5 ui-monospace,Consolas,monospace;margin:0}
+.pvinfo{display:grid;gap:6px}
+.pvinfo div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line);padding:6px 0;overflow-wrap:anywhere}
+.pvinfo span{color:var(--muted)}
+
+
 /* HIDDEN ITEMS: anything with the hidden attribute is not shown */
 [hidden]{display:none!important}
 
@@ -484,6 +502,19 @@ ul.files li:hover{background:#F4F8FF}
   </div>
 </section>
 
+<!-- FILE PREVIEW WINDOW: opens when you click a file name -->
+<div class="modal" id="preview" hidden role="dialog" aria-modal="true" aria-labelledby="pvName">
+  <div class="pvcard">
+    <div class="pvhead">
+      <div style="min-width:0"><h2 id="pvName"></h2><div class="fd" id="pvMeta"></div></div>
+      <div class="row-tools">
+        <button type="button" class="btn ghost sm" id="pvDownload" data-act="download" data-id="">Download</button>
+        <button type="button" class="btn sm" id="pvClose">Close</button>
+      </div>
+    </div>
+    <div class="pvbody" id="pvBody"></div>
+  </div>
+</div>
 </main>
 </div>
 
@@ -816,6 +847,7 @@ ul.files li:hover{background:#F4F8FF}
   $("content").addEventListener("click", function(e){
     var b = e.target.closest("button[data-act]"); if(!b) return;
     var act = b.getAttribute("data-act"), id = b.getAttribute("data-id");
+    if(act === "preview"){ openPreview(id); return; }
     if(act === "openfolder"){ openFolder = id; renderFolders(); window.scrollTo(0,0); return; }
     if(act === "up"){ openFolder = null; renderFolders(); return; }
     if(act === "rename"){   // Rename a folder
@@ -954,7 +986,7 @@ ul.files li:hover{background:#F4F8FF}
     var list = items.length ? '<ul class="files">' + items.map(function(x){
       var tag = typeTag(x.name);
       return '<li><div class="fline">' + tag.replace('class="ftype', 'class="ftile') +
-        '<div><div class="fname">' + esc(x.name) + '</div><div class="fd">' + new Date(x.added).toLocaleDateString("en-GB") + ' - ' + fmtSize(x.size) + '</div></div></div>' +
+        '<div><div class="fname"><button type="button" class="fnamebtn" data-act="preview" data-id="' + x.id + '">' + esc(x.name) + '</button></div><div class="fd">' + new Date(x.added).toLocaleDateString("en-GB") + ' - ' + fmtSize(x.size) + '</div></div></div>' +
         '<div class="row-tools"><label class="sr" for="mv-' + x.id + '">Move ' + esc(x.name) + '</label>' +
         '<select id="mv-' + x.id + '" data-act="move" data-id="' + x.id + '">' + moveOpts(x.folderId) + '</select>' +
         (dl ? '<button type="button" class="btn ghost sm" data-act="download" data-id="' + x.id + '" aria-label="Download ' + esc(x.name) + '">Download</button>' : '') +
@@ -1060,7 +1092,7 @@ ul.files li:hover{background:#F4F8FF}
   // Menu button, dark background, and Escape key close or open the menu
   $("menuBtn").addEventListener("click", function(){ setMenu(!$("app").classList.contains("open")); });
   $("scrim").addEventListener("click", function(){ setMenu(false); });
-  document.addEventListener("keydown", function(e){ if(e.key === "Escape") setMenu(false); });
+  document.addEventListener("keydown", function(e){ if(e.key === "Escape"){ setMenu(false); closePreview(); } });
 
 
   // ALL FILES PANEL: one list of every file
@@ -1089,7 +1121,7 @@ ul.files li:hover{background:#F4F8FF}
         }).join("");
     };
     box.innerHTML = '<ul class="files">' + items.map(function(x){
-      return '<li><div><div class="fname">' + typeTag(x.name) + esc(x.name) + '</div><div class="fmeta">' + fmtSize(x.size) + ' <span class="tag">' + esc(folderLabel(x.folderId)) + '</span></div></div>' +
+      return '<li><div><div class="fname">' + typeTag(x.name) + '<button type="button" class="fnamebtn" data-act="preview" data-id="' + x.id + '">' + esc(x.name) + '</button></div><div class="fmeta">' + fmtSize(x.size) + ' <span class="tag">' + esc(folderLabel(x.folderId)) + '</span></div></div>' +
         '<div class="row-tools"><label class="sr" for="fmv-' + x.id + '">Move ' + esc(x.name) + '</label>' +
         '<select id="fmv-' + x.id + '" data-act="move" data-id="' + x.id + '">' + moveOpts(x.folderId) + '</select>' +
         (dl ? '<button type="button" class="btn ghost sm" data-act="download" data-id="' + x.id + '" aria-label="Download ' + esc(x.name) + '">Download</button>' : '') +
@@ -1307,6 +1339,195 @@ ul.files li:hover{background:#F4F8FF}
     $("aPass").type = t; $("aPass2").type = t;
   });
   $("btnLogout").addEventListener("click", signOut);
+
+
+  // ---------- FILE PREVIEW ----------
+
+
+  // Web addresses of the small helper libraries (loaded only when needed, for PDF, Word, and Excel files)
+  var PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  var PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  var MAMMOTH = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
+  var SHEETJS = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  var pvUrl = null;     // temporary web address of the file being previewed
+  var pvToken = 0;      // makes sure an old preview does not replace a newer one
+
+
+  // Loads a helper library once
+  var loaded = {};
+  function loadScript(url){
+    if(loaded[url]) return loaded[url];
+    loaded[url] = new Promise(function(resolve, reject){
+      var s = document.createElement("script");
+      s.src = url; s.onload = resolve;
+      s.onerror = function(){ delete loaded[url]; reject(new Error("load")); };
+      document.head.appendChild(s);
+    });
+    return loaded[url];
+  }
+
+
+  // Closes the preview window and frees memory
+  function closePreview(){
+    pvToken++;
+    $("preview").hidden = true;
+    $("pvBody").innerHTML = "";
+    if(pvUrl){ URL.revokeObjectURL(pvUrl); pvUrl = null; }
+    document.body.style.overflow = "";
+  }
+
+
+  // Shows the file details when the file cannot be previewed
+  function showInfo(rec, note){
+    $("pvBody").innerHTML = '<p class="fmeta" style="margin:0 0 12px">' + esc(note) + '</p><div class="pvinfo">' +
+      '<div><span>Name</span><strong>' + esc(rec.name) + '</strong></div>' +
+      '<div><span>Type</span><strong>' + esc(rec.type || "Unknown") + '</strong></div>' +
+      '<div><span>Size</span><strong>' + rec.size.toLocaleString() + ' bytes (' + fmtSize(rec.size) + ')</strong></div>' +
+      '<div><span>Added</span><strong>' + new Date(rec.added).toLocaleString("en-GB") + '</strong></div>' +
+      '<div><span>Folder</span><strong>' + esc(folderLabel(rec.folderId)) + '</strong></div></div>';
+  }
+
+
+  // Shows HTML inside a locked frame, so nothing in the file can run code
+  function showHtmlFrame(html){
+    var f = document.createElement("iframe");
+    f.className = "pvframe"; f.setAttribute("sandbox", ""); f.title = "File preview";
+    f.srcdoc = '<style>body{font-family:Segoe UI,Arial,sans-serif;padding:14px;line-height:1.5;color:#111}img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px}</style>' + html;
+    $("pvBody").innerHTML = ""; $("pvBody").appendChild(f);
+  }
+
+
+  // Opens the preview window for one file
+  function openPreview(id){
+    var rec = data.files.filter(function(x){ return x.id === id; })[0];
+    if(!rec) return;
+    var token = ++pvToken;
+    if(pvUrl){ URL.revokeObjectURL(pvUrl); pvUrl = null; }
+    $("pvName").textContent = rec.name;
+    $("pvMeta").textContent = fmtSize(rec.size) + " - " + new Date(rec.added).toLocaleDateString("en-GB") + " - " + folderLabel(rec.folderId);
+    $("pvDownload").setAttribute("data-id", id);
+    $("pvBody").innerHTML = '<p class="empty">Loading preview...</p>';
+    $("preview").hidden = false;
+    document.body.style.overflow = "hidden";
+    $("pvClose").focus();
+    getBlob(id).then(function(blob){
+      if(token !== pvToken) return;
+      if(!blob){ showInfo(rec, "This file has no stored copy. Add it again to preview it."); return; }
+      return drawPreview(rec, blob, token);
+    }).catch(function(){
+      if(token === pvToken) showInfo(rec, "The file could not be previewed. Use Download to open it in another app.");
+    });
+  }
+
+
+  // Chooses the best way to show the file, based on its type
+  function drawPreview(rec, blob, token){
+    var m = /\.([A-Za-z0-9]+)$/.exec(rec.name), ext = m ? m[1].toLowerCase() : "";
+    var type = (blob.type || rec.type || "").toLowerCase();
+    var body = $("pvBody");
+    var typed = function(t){ return new Blob([blob], {type:t}); };
+
+    // Pictures
+    if(type.indexOf("image/") === 0 || /^(png|jpe?g|gif|webp|svg|bmp|avif|ico)$/.test(ext)){
+      pvUrl = URL.createObjectURL(blob);
+      body.innerHTML = '<img alt="' + esc(rec.name) + '">';
+      body.firstChild.src = pvUrl;
+      body.firstChild.onerror = function(){ showInfo(rec, "This picture could not be shown. Use Download to open it."); };
+      return;
+    }
+
+    // Video and audio
+    if(type.indexOf("video/") === 0 || /^(mp4|webm|mov|m4v|ogv)$/.test(ext)){
+      pvUrl = URL.createObjectURL(blob);
+      body.innerHTML = '<video controls playsinline></video>'; body.firstChild.src = pvUrl;
+      return;
+    }
+    if(type.indexOf("audio/") === 0 || /^(mp3|wav|ogg|m4a|aac|flac)$/.test(ext)){
+      pvUrl = URL.createObjectURL(blob);
+      body.innerHTML = '<audio controls></audio>'; body.firstChild.src = pvUrl;
+      return;
+    }
+
+    // PDF: draw each page with PDF.js. If it cannot load, use the browser's own viewer
+    if(ext === "pdf" || type === "application/pdf"){
+      var pdfBlob = typed("application/pdf");
+      pvUrl = URL.createObjectURL(pdfBlob);
+      var fallback = function(){
+        if(token !== pvToken) return;
+        body.innerHTML = '<iframe class="pvframe" title="PDF preview"></iframe><p class="fmeta">If the PDF does not appear, use Download and open it in another app.</p>';
+        body.firstChild.src = pvUrl;
+      };
+      return loadScript(PDFJS).then(function(){
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+        return pdfBlob.arrayBuffer();
+      }).then(function(buf){
+        return window.pdfjsLib.getDocument({data:buf}).promise;
+      }).then(function(pdf){
+        if(token !== pvToken) return;
+        body.innerHTML = "";
+        var total = Math.min(pdf.numPages, 30);
+        var chain = Promise.resolve();
+        for(var i = 1; i <= total; i++){
+          (function(n){
+            chain = chain.then(function(){
+              if(token !== pvToken) return;
+              return pdf.getPage(n).then(function(page){
+                var vp = page.getViewport({scale:1.3});
+                var c = document.createElement("canvas");
+                c.width = vp.width; c.height = vp.height;
+                body.appendChild(c);
+                return page.render({canvasContext:c.getContext("2d"), viewport:vp}).promise;
+              });
+            });
+          })(i);
+        }
+        return chain.then(function(){
+          if(pdf.numPages > total && token === pvToken){
+            var p = document.createElement("p"); p.className = "fmeta";
+            p.textContent = "Showing the first " + total + " of " + pdf.numPages + " pages. Use Download to read the rest.";
+            body.appendChild(p);
+          }
+        });
+      }).catch(fallback);
+    }
+
+    // Word documents
+    if(ext === "docx"){
+      return loadScript(MAMMOTH).then(function(){ return blob.arrayBuffer(); })
+        .then(function(buf){ return window.mammoth.convertToHtml({arrayBuffer:buf}); })
+        .then(function(r){ if(token === pvToken) showHtmlFrame(r.value || "<p>This document is empty.</p>"); })
+        .catch(function(){ if(token === pvToken) showInfo(rec, "This document could not be previewed here. Use Download to open it in Word."); });
+    }
+
+    // Excel sheets (first sheet)
+    if(ext === "xlsx" || ext === "xls"){
+      return loadScript(SHEETJS).then(function(){ return blob.arrayBuffer(); })
+        .then(function(buf){
+          var wb = window.XLSX.read(buf, {type:"array"});
+          var sheet = wb.Sheets[wb.SheetNames[0]];
+          if(token === pvToken) showHtmlFrame('<p><strong>Sheet: ' + esc(wb.SheetNames[0]) + '</strong></p>' + window.XLSX.utils.sheet_to_html(sheet));
+        })
+        .catch(function(){ if(token === pvToken) showInfo(rec, "This spreadsheet could not be previewed here. Use Download to open it in Excel."); });
+    }
+
+    // Text files, code, and data files
+    if(type.indexOf("text/") === 0 || /^(txt|md|csv|json|log|xml|html?|css|js|ts|py|java|c|cpp|h|sql|ini|yml|yaml|rtf)$/.test(ext)){
+      return blob.slice(0, 200000).text().then(function(t){
+        if(token !== pvToken) return;
+        var pre = document.createElement("pre"); pre.className = "pvtext";
+        pre.textContent = t + (blob.size > 200000 ? "\n\n... (showing the first part only. Use Download to read all of it.)" : "");
+        body.innerHTML = ""; body.appendChild(pre);
+      });
+    }
+
+    // Anything else (for example PowerPoint files)
+    showInfo(rec, "A preview is not available for this type of file. Use Download to open it in another app.");
+  }
+
+
+  // Preview window buttons
+  $("pvClose").addEventListener("click", closePreview);
+  $("preview").addEventListener("click", function(e){ if(e.target === this) closePreview(); });
 
 
   // NAVIGATION: switching between the panels
